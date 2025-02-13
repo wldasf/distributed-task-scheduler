@@ -33,16 +33,15 @@ def worker_function(task_queue):
             print(f"Worker thread {threading.current_thread().name} encountered an error: {e}")
             break
 
-# Modified scheduler_function (snippet)
 def scheduler_function(task_queue, num_workers):
     worker_index = 0
-    task_order = list(task_queue.queue) # Get the tasks in the queue at the start
-    for task_peek in task_order: # Iterate through the initial tasks
+    task_order = list(task_queue.queue) 
+    for task_peek in task_order: 
         worker_name = f"Worker-{worker_index + 1}"
         print(f"Scheduler: Assigning task {task_peek['task_id']} to {worker_name}")
         task_peek['assigned_to'] = worker_name
         worker_index = (worker_index + 1) % num_workers
-    print("Created and started scheduler thread.") # Moved print here
+    print("Created and started scheduler thread.") 
 
 if __name__ == "__main__":
     task1 = create_task(1, "Process user data")
