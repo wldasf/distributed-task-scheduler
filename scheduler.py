@@ -1,6 +1,7 @@
 import pika
 import json
 import threading
+import datetime
 import time
 from sqlalchemy.orm import Session
 from models import Task, engine, Session as SessionMaker
@@ -19,7 +20,7 @@ def process_task(task_data, worker_id):
     if task:
         task.status = 'in-progress'
         task.worker_id = worker_id
-        task.started_at = time.time()
+        task.started_at = datetime.datetime.now(datetime.UTC)
         session.commit()
     session.close()
 
@@ -29,7 +30,7 @@ def process_task(task_data, worker_id):
     task = session.query(Task).filter_by(task_id=task_id).first()
     if task:
         task.status = 'completed'
-        task.completed_at = time.time()
+        task.completed_at = datetime.datetime.now(datetime.UTC)
         session.commit()
     session.close()
 

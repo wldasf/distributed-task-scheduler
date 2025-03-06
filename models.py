@@ -11,7 +11,7 @@ class Task(Base):
     status = Column(String, default='pending')
     worker_id = Column(String)
     priority = Column(Integer)
-    submitted_at = Column(DateTime, default=datetime.datetime.utcnow)
+    submitted_at = Column(DateTime, default=datetime.datetime.now(datetime.UTC))
     started_at = Column(DateTime)
     completed_at = Column(DateTime)
 
