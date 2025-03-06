@@ -62,9 +62,12 @@ def callback(ch, method, properties, body):
     ch.basic_ack(delivery_tag=method.delivery_tag)
 
 def start_scheduler():
+    print("Starting scheduler...")
     connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+    print("Connected to RabbitMQ")
     channel = connection.channel()
     channel.queue_declare(queue='task_queue', durable=True)
+    print("Queue declared")
 
     channel.basic_qos(prefetch_count=1)
     channel.basic_consume(queue='task_queue', on_message_callback=callback)
@@ -72,5 +75,5 @@ def start_scheduler():
     print(" [Scheduler] Waiting for tasks. To exit press CTRL+C")
     channel.start_consuming()
 
-if __name__ == '__name__':
-    start.scheduler()
+if __name__ == '__main__':
+    start_scheduler()
