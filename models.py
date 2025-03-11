@@ -1,6 +1,5 @@
-from sqlalchemy import create_engine, Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
 import datetime
 
 Base = declarative_base()
@@ -14,8 +13,5 @@ class Task(Base):
     submitted_at = Column(DateTime, default=datetime.datetime.now(datetime.UTC))
     started_at = Column(DateTime)
     completed_at = Column(DateTime)
-
-engine = create_engine('sqlite:///tasks.db')
-Base.metadata.create_all(engine)
-Session = sessionmaker(bind=engine)
+    date = Column(String)
 

@@ -3,16 +3,12 @@ import json
 import threading
 import datetime
 import time
-from sqlalchemy.orm import Session
-from models import Task, engine, Session as SessionMaker
+from models import Task, SessionMaker
 
-NUM_WORKERS = 3
-workers = [f"worker-{i}" for i in range(NUM_WORKERS)]
 task_assignments = {}
 lock = threading.Lock()
 
-def process_task(task_data, worker_id):
-    task_id = task_data['task_id']
+def process_task(task_data, worker_id, task_id):
     print(f" [{worker_id}] Processing task {task_id}")
 
     session = SessionMaker()
@@ -24,7 +20,7 @@ def process_task(task_data, worker_id):
         session.commit()
     session.close()
 
-    time.sleep(2 + task_data['priority'])
+    time.sleep(2)
 
     session = SessionMaker()
     task = session.query(Task).filter_by(task_id=task_id).first()
@@ -35,46 +31,36 @@ def process_task(task_data, worker_id):
     session.close()
 
     print(f" [{worker_id}] Completed task {task_id}")
-    with lock:
-        del task_assignments[task_id]
 
-def callback(ch, method, properties, body):
-    task = json.loads(body)
-    task_id = task['task_id']
-    print(f" [Scheduler] Received task {task_id}")
-
-    session = SessionMaker()
-    db_task = Task(
-        task_id=task_id,
-        priority=task['priority'],
-        status='pending'
-    )
-    session.add(db_task)
-    session.commit()
-    session.close()
-
-    with lock:
-        available_worker = workers[len(task_assignments) % NUM_WORKERS]
-        task_assignments[task_id] = available_worker
-
-    worker_thread = threading.Thread(target=process_task, args=(task, available_worker))
-    worker_thread.start()
-
-    ch.basic_ack(delivery_tag=method.delivery_tag)
-
-def start_scheduler():
-    print("Starting scheduler...")
+def worker_function(worker_id):
     connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
-    print("Connected to RabbitMQ")
     channel = connection.channel()
-    channel.queue_declare(queue='task_queue', durable=True)
-    print("Queue declared")
-
+    channel.queue_declare(queue='task_queue', durable=True, arguments={'x-max-priority': 10})
     channel.basic_qos(prefetch_count=1)
-    channel.basic_consume(queue='task_queue', on_message_callback=callback)
+    
+    def callback(ch, method, properties, body):
+        message = json.loads(body)
+        task_id = task['task_id']
+        task_data = message['data']
+        process_task(task_data, worker_id, task_id)
+        ch.basic_ack(delivery_tag=method.delivery_tag)
 
-    print(" [Scheduler] Waiting for tasks. To exit press CTRL+C")
+    channel.basic_consume(queue='task_queue', on_message_callback=callback)
+    print(f" [{worker_id}] Waiting for tasks.")
     channel.start_consuming()
 
 if __name__ == '__main__':
-    start_scheduler()
+    NUM_WORKERS = 3
+    workers = []
+    for i in range(NUM_WORKERS):
+        worker_id = f"worker-{i}"
+        worker_thread = threading.Thread(target=worker_function, args=(worker_id,), daemon=True)
+        worker_thread.start()
+        workers.append(worker_thread)
+        print(f"Started {worker_id}")
+
+    try:
+        for worker in workers:
+            worker.join()
+    except KeyboardInterrupt:
+        print("Shutting down workers...")
